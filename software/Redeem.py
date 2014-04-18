@@ -37,7 +37,7 @@ from Gcode import Gcode
 import sys
 from Extruder import Extruder, HBP
 from Pru import Pru
-from Path import Path
+from Path import Path, RelativePath, AbsolutePath, G92Path
 from PathPlanner import PathPlanner
 from ColdEnd import ColdEnd
 from PruFirmware import PruFirmware
@@ -48,8 +48,6 @@ from GCodeProcessor import GCodeProcessor
 logging.basicConfig(level=logging.DEBUG, 
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     datefmt='%m-%d %H:%M')
-
-print "Redeem v. "+version
 
 class Redeem:
     ''' Init '''
@@ -187,7 +185,8 @@ class Redeem:
         #self.pipe.set_send_reponse(False)
         self.ethernet = Ethernet(self.commands)
         
-        # Init the path planner     
+
+        # Init the path planner         
         Path.axis_config = int(self.printer.config.get('Geometry', 'axis_config'))
         Path.max_speed_x = float(self.printer.config.get('Steppers', 'max_speed_x'))
         Path.max_speed_y = float(self.printer.config.get('Steppers', 'max_speed_y'))
@@ -200,6 +199,15 @@ class Redeem:
         Path.home_speed_z = float(self.printer.config.get('Steppers', 'home_speed_z'))
         Path.home_speed_e = float(self.printer.config.get('Steppers', 'home_speed_e'))
         Path.home_speed_h = float(self.printer.config.get('Steppers', 'home_speed_h'))
+    
+        Path.steps_pr_meter[0] = self.printer.steppers["X"].get_steps_pr_meter()
+        Path.steps_pr_meter[1] = self.printer.steppers["Y"].get_steps_pr_meter()
+        Path.steps_pr_meter[2] = self.printer.steppers["Z"].get_steps_pr_meter()
+        Path.steps_pr_meter[3] = self.printer.steppers["E"].get_steps_pr_meter()
+        Path.steps_pr_meter[4] = self.printer.steppers["H"].get_steps_pr_meter()
+        
+        logging.debug(Path.steps_pr_meter)
+
 
         dirname = os.path.dirname(os.path.realpath(__file__))
 
@@ -207,7 +215,10 @@ class Redeem:
         pru_firmware = PruFirmware(dirname+"/../firmware/firmware_runtime.p",dirname+"/../firmware/firmware_runtime.bin",dirname+"/../firmware/firmware_endstops.p",dirname+"/../firmware/firmware_endstops.bin",self.revision,self.printer.config,"/usr/bin/pasm")
 
         self.printer.path_planner = PathPlanner(self.printer.steppers, pru_firmware)
-        self.printer.path_planner.set_acceleration(float(self.printer.config.get('Steppers', 'acceleration'))) 
+        self.printer.path_planner.acceleration=float(self.printer.config.get('Steppers', 'acceleration'))
+        #self.printer.path_planner.make_acceleration_tables()
+        #self.printer.path_planner.save_acceleration_tables()
+        self.printer.path_planner.load_acceleration_tables()
 
         travel={}
         offset={}
@@ -215,8 +226,8 @@ class Redeem:
             travel[axis] = self.printer.config.getfloat('Geometry', 'travel_'+axis.lower())
             offset[axis] = self.printer.config.getfloat('Geometry', 'offset_'+axis.lower())
 
-        self.printer.path_planner.set_travel_length(travel)
-        self.printer.path_planner.set_center_offset(offset)
+        self.printer.path_planner.travel_length = travel
+        self.printer.path_planner.center_offset = offset
 
         self.printer.processor = GCodeProcessor(self.printer);
 

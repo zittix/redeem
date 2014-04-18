@@ -7,6 +7,8 @@ Website: http://www.xwaves.net
 License: CC BY-SA: http://creativecommons.org/licenses/by-sa/2.0/
 '''
 
+from Path import Path
+
 # A command received from pronterface or whatever
 class Printer:
 
@@ -19,9 +21,10 @@ class Printer:
         self.factor = 1.0
         self.path_planner=path_planner
 
-        self.movement = "RELATIVE"
         self.feed_rate = 3000.0   
         self.current_tool="E"
+
+        self.movement = Path.RELATIVE
 
 
 
